@@ -64,9 +64,9 @@ namespace skyline::gpu {
         ANativeWindow_Buffer buffer;
         ARect rect;
 
-        ANativeWindow_lock(window, &buffer, &rect);
-        std::memcpy(buffer.bits, texture->backing.data(), texture->backing.size());
-        ANativeWindow_unlockAndPost(window);
+ //       ANativeWindow_lock(window, &buffer, &rect);
+  //      std::memcpy(buffer.bits, texture->backing.data(), texture->backing.size());
+  //      ANativeWindow_unlockAndPost(window);
 
         vsyncEvent->Signal();
 
