@@ -67,7 +67,7 @@ namespace skyline::service::hosbinder {
         auto buffer{queue.at(data.slot)};
         buffer->status = BufferStatus::Queued;
 
-        buffer->texture->SynchronizeHost();
+ //       buffer->texture->SynchronizeHost();
         state.gpu->presentation.Present(buffer->texture);
         queue.at(data.slot)->status = BufferStatus::Free;
         state.gpu->presentation.bufferEvent->Signal();
