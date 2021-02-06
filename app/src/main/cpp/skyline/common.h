@@ -72,10 +72,7 @@ namespace skyline {
          */
         Result() = default;
 
-        constexpr Result(u16 module, u16 id) {
-            this->module = module;
-            this->id = id;
-        }
+        constexpr Result(u16 module, u16 id) : module(module), id(id) {}
 
         constexpr operator u32() const {
             return raw;

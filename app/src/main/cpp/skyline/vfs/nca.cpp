@@ -14,14 +14,14 @@
 namespace skyline::vfs {
     using namespace loader;
 
-    NCA::NCA(std::shared_ptr<vfs::Backing> backing, std::shared_ptr<crypto::KeyStore> keyStore) : backing(std::move(backing)), keyStore(std::move(keyStore)) {
-        header = this->backing->Read<NcaHeader>();
+    NCA::NCA(std::shared_ptr<vfs::Backing> pBacking, std::shared_ptr<crypto::KeyStore> pKeyStore) : backing(std::move(pBacking)), keyStore(std::move(pKeyStore)) {
+        header = backing->Read<NcaHeader>();
 
         if (header.magic != util::MakeMagic<u32>("NCA3")) {
-            if (!this->keyStore->headerKey)
+            if (!keyStore->headerKey)
                 throw loader_exception(LoaderResult::MissingHeaderKey);
 
-            crypto::AesCipher cipher(*this->keyStore->headerKey, MBEDTLS_CIPHER_AES_128_XTS);
+            crypto::AesCipher cipher(*keyStore->headerKey, MBEDTLS_CIPHER_AES_128_XTS);
 
             cipher.XtsDecrypt({reinterpret_cast<u8 *>(&header), sizeof(NcaHeader)}, 0, 0x200);
 

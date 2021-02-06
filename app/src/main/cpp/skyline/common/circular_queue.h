@@ -31,8 +31,8 @@ namespace skyline {
         CircularQueue &operator=(const CircularQueue &) = delete;
 
         CircularQueue(CircularQueue &&other) : vector(std::move(other.vector)), consumptionMutex(std::move(other.consumptionMutex)), consumeCondition(std::move(other.consumeCondition)), productionMutex(std::move(other.productionMutex)), produceCondition(std::move(other.produceCondition)) {
-            this->start = other.start;
-            this->end = other.end;
+            start = other.start;
+            end = other.end;
             other.start = other.end = nullptr;
         }
 

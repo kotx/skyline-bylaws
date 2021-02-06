@@ -9,24 +9,24 @@
 #include "nro.h"
 
 namespace skyline::loader {
-    NroLoader::NroLoader(std::shared_ptr<vfs::Backing> backing) : backing(std::move(backing)) {
-        header = this->backing->Read<NroHeader>();
+    NroLoader::NroLoader(std::shared_ptr<vfs::Backing> pBacking) : backing(std::move(pBacking)) {
+        header = backing->Read<NroHeader>();
 
         if (header.magic != util::MakeMagic<u32>("NRO0"))
             throw exception("Invalid NRO magic! 0x{0:X}", header.magic);
 
         // The homebrew asset section is appended to the end of an NRO file
-        if (this->backing->size > header.size) {
-            assetHeader = this->backing->Read<NroAssetHeader>(header.size);
+        if (backing->size > header.size) {
+            assetHeader = backing->Read<NroAssetHeader>(header.size);
 
             if (assetHeader.magic != util::MakeMagic<u32>("ASET"))
                 throw exception("Invalid ASET magic! 0x{0:X}", assetHeader.magic);
 
             NroAssetSection &nacpHeader{assetHeader.nacp};
-            nacp.emplace(std::make_shared<vfs::RegionBacking>(this->backing, header.size + nacpHeader.offset, nacpHeader.size));
+            nacp.emplace(std::make_shared<vfs::RegionBacking>(backing, header.size + nacpHeader.offset, nacpHeader.size));
 
             NroAssetSection &romFsHeader{assetHeader.romFs};
-            romFs = std::make_shared<vfs::RegionBacking>(this->backing, header.size + romFsHeader.offset, romFsHeader.size);
+            romFs = std::make_shared<vfs::RegionBacking>(backing, header.size + romFsHeader.offset, romFsHeader.size);
         }
     }
 

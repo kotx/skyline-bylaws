@@ -54,10 +54,10 @@ namespace skyline::service::nvdrv::device {
         event->ResetSignal();
     }
 
-    void SyncpointEvent::Wait(const std::shared_ptr<gpu::GPU> &gpuState, const Fence &fence) {
+    void SyncpointEvent::Wait(const std::shared_ptr<gpu::GPU> &gpuState, const Fence &pFence) {
         std::lock_guard lock(mtx);
 
-        this->fence = fence;
+        fence = pFence;
         state = State::Waiting;
         waiterId = gpuState->syncpoints.at(fence.id).RegisterWaiter(fence.value, [this] { Signal(); });
     }

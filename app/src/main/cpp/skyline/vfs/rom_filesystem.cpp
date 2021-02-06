@@ -5,8 +5,8 @@
 #include "rom_filesystem.h"
 
 namespace skyline::vfs {
-    RomFileSystem::RomFileSystem(std::shared_ptr<Backing> backing) : FileSystem(), backing(std::move(backing)) {
-        header = this->backing->Read<RomFsHeader>();
+    RomFileSystem::RomFileSystem(std::shared_ptr<Backing> pBacking) : FileSystem(), backing(std::move(pBacking)) {
+        header = backing->Read<RomFsHeader>();
         TraverseDirectory(0, "");
     }
 

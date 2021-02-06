@@ -8,8 +8,8 @@
 #include "nso.h"
 
 namespace skyline::loader {
-    NsoLoader::NsoLoader(std::shared_ptr<vfs::Backing> backing) : backing(std::move(backing)) {
-        u32 magic{this->backing->Read<u32>()};
+    NsoLoader::NsoLoader(std::shared_ptr<vfs::Backing> pBacking) : backing(std::move(pBacking)) {
+        u32 magic{backing->Read<u32>()};
 
         if (magic != util::MakeMagic<u32>("NSO0"))
             throw exception("Invalid NSO magic! 0x{0:X}", magic);

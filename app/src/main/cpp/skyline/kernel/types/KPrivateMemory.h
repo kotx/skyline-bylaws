@@ -33,12 +33,6 @@ namespace skyline::kernel::type {
             return span(ptr, size);
         }
 
-        /**
-         * @brief Updates the permissions of a block of mapped memory
-         * @param address The starting address to change the permissions at
-         * @param size The size of the partition to change the permissions of
-         * @param permission The new permissions to be set for the memory
-         */
         void UpdatePermission(u8 *ptr, size_t size, memory::Permission permission) override;
 
         /**
