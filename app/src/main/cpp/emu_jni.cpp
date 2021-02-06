@@ -5,9 +5,12 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <android/log.h>
+#include <perfetto.h>
+#include <fcntl.h>
 #include "skyline/common.h"
 #include "skyline/common/signal.h"
 #include "skyline/common/settings.h"
+#include "skyline/common/tracing.h"
 #include "skyline/loader/loader.h"
 #include "skyline/os.h"
 #include "skyline/jvm.h"
@@ -17,6 +20,7 @@
 
 skyline::u16 Fps;
 skyline::u32 FrameTime;
+double Fps2{0.0f};
 std::weak_ptr<skyline::kernel::OS> OsWeak;
 std::weak_ptr<skyline::gpu::GPU> GpuWeak;
 std::weak_ptr<skyline::input::Input> InputWeak;
@@ -24,6 +28,7 @@ std::weak_ptr<skyline::input::Input> InputWeak;
 extern "C" JNIEXPORT void Java_emu_skyline_EmulationActivity_executeApplication(JNIEnv *env, jobject instance, jstring romUriJstring, jint romType, jint romFd, jint preferenceFd, jstring appFilesPathJstring) {
     skyline::signal::ScopedStackBlocker stackBlocker;
     Fps = FrameTime = 0;
+
 
     pthread_setname_np(pthread_self(), "EmuMain");
 
@@ -35,6 +40,12 @@ extern "C" JNIEXPORT void Java_emu_skyline_EmulationActivity_executeApplication(
     auto logger{std::make_shared<skyline::Logger>(std::string(appFilesPath) + "skyline.log", settings->logLevel)};
 
     auto start{std::chrono::steady_clock::now()};
+
+    // Initialise tracing
+    perfetto::TracingInitArgs args;
+    args.backends |= perfetto::kSystemBackend;
+    perfetto::Tracing::Initialize(args);
+    perfetto::TrackEvent::Register();
 
     try {
         auto os{std::make_shared<skyline::kernel::OS>(jvmManager, logger, settings, std::string(appFilesPath))};
@@ -56,6 +67,8 @@ extern "C" JNIEXPORT void Java_emu_skyline_EmulationActivity_executeApplication(
     } catch (...) {
         logger->Error("An unknown exception has occurred");
     }
+
+    perfetto::TrackEvent::Flush();
 
     InputWeak.reset();
 

@@ -17,3 +17,7 @@
 [submodule "app/libraries/pugixml"]
 	path = app/libraries/pugixml
 	url = https://github.com/zeux/pugixml.git
+[submodule "app/libraries/perfetto"]
+	path = app/libraries/perfetto
+	url = https://android.googlesource.com/platform/external/perfetto
+	branch = releases/v12.x

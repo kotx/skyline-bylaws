@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright © 2020 Skyline Team and Contributors (https://github.com/skyline-emu/)
 
+#include <common/tracing.h>
 #include <android/native_window.h>
 #include <kernel/types/KProcess.h>
 #include <unistd.h>
@@ -22,10 +23,12 @@ namespace skyline::gpu {
     }
 
     void Texture::SynchronizeHost() {
+        TRACE_EVENT("gpu", "Texture::SynchronizeHost");
         auto pointer{guest->pointer};
         auto size{format.GetSize(dimensions)};
         backing.resize(size);
         auto output{reinterpret_cast<u8 *>(backing.data())};
+
 
         if (guest->tileMode == texture::TileMode::Block) {
             // Reference on Block-linear tiling: https://gist.github.com/PixelyIon/d9c35050af0ef5690566ca9f0965bc32

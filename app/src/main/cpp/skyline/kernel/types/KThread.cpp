@@ -4,6 +4,7 @@
 #include <cxxabi.h>
 #include <unistd.h>
 #include <common/signal.h>
+#include <common/tracing.h>
 #include <nce.h>
 #include <os.h>
 #include "KProcess.h"
@@ -34,6 +35,7 @@ namespace skyline::kernel::type {
         ctx.state = &state;
         state.ctx = &ctx;
         state.thread = shared_from_this();
+
 
         if (setjmp(originalCtx)) { // Returns 1 if it's returning from guest, 0 otherwise
             state.scheduler->RemoveThread();
@@ -81,6 +83,8 @@ namespace skyline::kernel::type {
                 Scheduler::YieldPending = false;
                 state.scheduler->WaitSchedule();
             }
+
+            TRACE_EVENT_BEGIN("guest", "Guest");
 
             asm volatile(
             "MRS X0, TPIDR_EL0\n\t"
