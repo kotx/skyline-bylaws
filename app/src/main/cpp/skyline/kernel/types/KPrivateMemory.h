@@ -29,7 +29,7 @@ namespace skyline::kernel::type {
          */
         void Remap(u8 *ptr, size_t size);
 
-        inline span<u8> Get() override {
+        span<u8> Get() override {
             return span(ptr, size);
         }
 

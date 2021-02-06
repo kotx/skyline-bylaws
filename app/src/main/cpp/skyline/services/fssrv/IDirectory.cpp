@@ -2,6 +2,7 @@
 // Copyright © 2020 Skyline Team and Contributors (https://github.com/skyline-emu/)
 
 #include <kernel/types/KProcess.h>
+
 #include "results.h"
 #include "IDirectory.h"
 
@@ -21,7 +22,7 @@ namespace skyline::service::fssrv {
         u64 size;
     };
 
-    IDirectory::IDirectory(std::shared_ptr<vfs::Directory> backing, std::shared_ptr<vfs::FileSystem> backingFs, const DeviceState &state, ServiceManager &manager) : backing(backing), backingFs(backingFs), BaseService(state, manager) {}
+    IDirectory::IDirectory(std::shared_ptr<vfs::Directory> backing, std::shared_ptr<vfs::FileSystem> backingFs, const DeviceState &state, ServiceManager &manager) : backing(std::move(backing)), backingFs(std::move(backingFs)), BaseService(state, manager) {}
 
     Result IDirectory::Read(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response) {
         auto entries{backing->Read()};

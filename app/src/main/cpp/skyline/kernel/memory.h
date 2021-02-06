@@ -176,7 +176,7 @@ namespace skyline {
             constexpr MemoryState KernelStack{0x00002013};
             constexpr MemoryState CodeReadOnly{0x00402214};
             constexpr MemoryState CodeWritable{0x00402015};
-        };
+        }
 
         struct Region {
             u64 address;

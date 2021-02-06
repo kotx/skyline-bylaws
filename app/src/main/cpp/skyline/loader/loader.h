@@ -80,7 +80,7 @@ namespace skyline::loader {
          * @param name An optional name for the executable, used for symbol resolution
          * @return An ExecutableLoadInfo struct containing the load base and size
          */
-        ExecutableLoadInfo LoadExecutable(const std::shared_ptr<kernel::type::KProcess> process, const DeviceState &state, Executable &executable, size_t offset = 0, const std::string& name = {});
+        ExecutableLoadInfo LoadExecutable(const std::shared_ptr<kernel::type::KProcess> &process, const DeviceState &state, Executable &executable, size_t offset = 0, const std::string& name = {});
 
         std::optional<vfs::NACP> nacp;
         std::shared_ptr<vfs::Backing> romFs;
@@ -94,7 +94,7 @@ namespace skyline::loader {
         /**
          * @return Entry point to the start of the main executable in the ROM
          */
-        virtual void *LoadProcessData(const std::shared_ptr<kernel::type::KProcess> process, const DeviceState &state) = 0;
+        virtual void *LoadProcessData(const std::shared_ptr<kernel::type::KProcess> &process, const DeviceState &state) = 0;
 
         struct SymbolInfo {
             char* name; //!< The name of the symbol that was found
@@ -116,6 +116,6 @@ namespace skyline::loader {
         /**
          * @return A string with the stack trace based on the stack frames in the supplied vector
          */
-        std::string GetStackTrace(const std::vector<void*> frames);
+        std::string GetStackTrace(const std::vector<void*> &frames);
     };
 }

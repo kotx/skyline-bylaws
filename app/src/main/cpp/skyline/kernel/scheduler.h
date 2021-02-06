@@ -136,11 +136,11 @@ namespace skyline {
             const DeviceState& state;
 
           public:
-            inline SchedulerScopedLock(const DeviceState& state) : state(state) {
+            SchedulerScopedLock(const DeviceState& state) : state(state) {
                 state.scheduler->RemoveThread();
             }
 
-            inline ~SchedulerScopedLock() {
+            ~SchedulerScopedLock() {
                 state.scheduler->InsertThread(state.thread);
                 state.scheduler->WaitSchedule();
             }

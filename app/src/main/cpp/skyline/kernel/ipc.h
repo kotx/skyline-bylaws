@@ -137,11 +137,11 @@ namespace skyline {
                 counter9_11 = static_cast<u16>(address & 0x38);
             }
 
-            inline u8 *Pointer() {
+            u8 *Pointer() {
                 return reinterpret_cast<u8 *>(static_cast<u64>(address0_31) | static_cast<u64>(address32_35) << 32 | static_cast<u64>(address36_38) << 36);
             }
 
-            inline u16 Counter() {
+            u16 Counter() {
                 return static_cast<u16>(counter0_5) | static_cast<u16>(counter9_11) << 9;
             }
         };
@@ -167,11 +167,11 @@ namespace skyline {
                 size32_35 = static_cast<u8>(size & 0x78000000);
             }
 
-            inline u8 *Pointer() {
+            u8 *Pointer() {
                 return reinterpret_cast<u8 *>(static_cast<u64>(address0_31) | static_cast<u64>(address32_35) << 32 | static_cast<u64>(address36_38) << 36);
             }
 
-            inline u64 Size() {
+            u64 Size() {
                 return static_cast<u64>(size0_31) | static_cast<u64>(size32_35) << 32;
             }
         };
@@ -184,7 +184,7 @@ namespace skyline {
             u64 address : 48; //!< The 48-bit address of the buffer
             u32 size : 16; //!< The 16-bit size of the buffer
 
-            inline u8 *Pointer() {
+            u8 *Pointer() {
                 return reinterpret_cast<u8 *>(address);
             }
 
@@ -228,7 +228,7 @@ namespace skyline {
              * @brief Returns a reference to an item from the top of the payload
              */
             template<typename ValueType>
-            inline ValueType &Pop() {
+            ValueType &Pop() {
                 ValueType &value{*reinterpret_cast<ValueType *>(payloadOffset)};
                 payloadOffset += sizeof(ValueType);
                 return value;
@@ -238,7 +238,7 @@ namespace skyline {
              * @brief Returns a std::string_view from the payload
              * @param size The length of the string (0 means the string is null terminated)
              */
-            inline std::string_view PopString(size_t size = 0) {
+            std::string_view PopString(size_t size = 0) {
                 auto view{size ? std::string_view(reinterpret_cast<const char *>(payloadOffset), size) : std::string_view(reinterpret_cast<const char *>(payloadOffset))};
                 payloadOffset += view.length();
                 return view;
@@ -248,7 +248,7 @@ namespace skyline {
              * @brief Skips an object to pop off the top
              */
             template<typename ValueType>
-            inline void Skip() {
+            void Skip() {
                 payloadOffset += sizeof(ValueType);
             }
         };
@@ -276,7 +276,7 @@ namespace skyline {
              * @param value A reference to the object to be written
              */
             template<typename ValueType>
-            inline void Push(const ValueType &value) {
+            void Push(const ValueType &value) {
                 auto size{payload.size()};
                 payload.resize(size + sizeof(ValueType));
                 std::memcpy(payload.data() + size, reinterpret_cast<const u8 *>(&value), sizeof(ValueType));
@@ -286,7 +286,7 @@ namespace skyline {
              * @brief Writes a string to the payload
              * @param string The string to write to the payload
              */
-            inline void Push(std::string_view string) {
+            void Push(std::string_view string) {
                 auto size{payload.size()};
                 payload.resize(size + string.size());
                 std::memcpy(payload.data() + size, string.data(), string.size());

@@ -17,7 +17,7 @@ namespace skyline::gpu {
         return sharedHost;
     }
 
-    Texture::Texture(const DeviceState &state, std::shared_ptr<GuestTexture> guest, texture::Dimensions dimensions, texture::Format format, texture::Swizzle swizzle) : state(state), guest(guest), dimensions(dimensions), format(format), swizzle(swizzle) {
+    Texture::Texture(const DeviceState &state, std::shared_ptr<GuestTexture> guest, texture::Dimensions dimensions, texture::Format format, texture::Swizzle swizzle) : state(state), guest(std::move(guest)), dimensions(dimensions), format(format), swizzle(swizzle) {
         SynchronizeHost();
     }
 

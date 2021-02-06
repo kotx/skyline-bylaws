@@ -29,7 +29,7 @@ namespace skyline::kernel::type {
         /**
          * @brief Resets the object to an unsignalled state
          */
-        inline void ResetSignal() {
+        void ResetSignal() {
             std::lock_guard lock(syncObjectMutex);
             signalled = false;
         }

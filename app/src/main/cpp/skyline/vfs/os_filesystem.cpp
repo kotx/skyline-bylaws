@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <unistd.h>
+
 #include "os_backing.h"
 #include "os_filesystem.h"
 
@@ -88,7 +89,7 @@ namespace skyline::vfs {
         return std::make_shared<OsFileSystemDirectory>(basePath + path, listMode);
     }
 
-    OsFileSystemDirectory::OsFileSystemDirectory(const std::string &path, Directory::ListMode listMode) : Directory(listMode), path(path) {}
+    OsFileSystemDirectory::OsFileSystemDirectory(std::string path, Directory::ListMode listMode) : Directory(listMode), path(std::move(path)) {}
 
     std::vector<Directory::Entry> OsFileSystemDirectory::Read() {
         if (!listMode.file && !listMode.directory)
