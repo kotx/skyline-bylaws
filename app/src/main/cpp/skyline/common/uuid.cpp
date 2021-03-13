@@ -35,7 +35,7 @@ namespace skyline {
                     u64 node : 48;
 
                     struct {
-                        std::array<u8, 6> nodeRaw;
+                        std::array<u8, 6> nodeArray;
                     };
                 };
             };
@@ -45,7 +45,7 @@ namespace skyline {
                 swappedLayout.timeLow = util::SwapEndianness(timeLow);
                 swappedLayout.timeMid = util::SwapEndianness(timeMid);
                 swappedLayout.timeHighAndVersion = util::SwapEndianness(timeHighAndVersion);
-                swappedLayout.nodeRaw = util::SwapEndianness(nodeRaw);
+                swappedLayout.nodeArray = util::SwapEndianness(nodeArray);
 
                 UUID out;
                 std::memcpy(&out, &swappedLayout, sizeof(UUID));
