@@ -33,6 +33,7 @@ import emu.skyline.adapter.LayoutType
 import emu.skyline.data.AppItem
 import emu.skyline.data.DataItem
 import emu.skyline.data.HeaderItem
+import emu.skyline.loader.AppEntry
 import emu.skyline.loader.LoaderResult
 import emu.skyline.loader.RomFile
 import emu.skyline.loader.RomFormat
@@ -122,8 +123,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        if (reloading.getAndSet(true)) return
-        thread(start = true) {
             val snackbar = Snackbar.make(coordinatorLayout, getString(R.string.searching_roms), Snackbar.LENGTH_INDEFINITE)
             runOnUiThread {
                 snackbar.show()
@@ -136,17 +135,10 @@ class MainActivity : AppCompatActivity() {
                 val searchLocation = DocumentFile.fromTreeUri(this, Uri.parse(settings.searchLocation))!!
 
                 val romElements = ArrayList<DataItem>()
-                addEntries("nro", RomFormat.NRO, searchLocation, romElements)
-                addEntries("nso", RomFormat.NSO, searchLocation, romElements)
-                addEntries("nca", RomFormat.NCA, searchLocation, romElements)
-                addEntries("xci", RomFormat.XCI, searchLocation, romElements)
-                addEntries("nsp", RomFormat.NSP, searchLocation, romElements)
+                romElements.add(0, AppItem (AppEntry("Test", "Test", icon = null, RomFormat.NRO, Uri.EMPTY, LoaderResult.Success)))
 
                 runOnUiThread {
-                    if (romElements.isEmpty()) {
-                        romElements.add(HeaderItem(getString(R.string.no_rom)))
-                        adapter.addItem(HeaderViewItem(getString(R.string.no_rom)))
-                    }
+
 
                     try {
                         romElements.serialize(romsFile)
@@ -175,7 +167,18 @@ class MainActivity : AppCompatActivity() {
                 requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
             }
 
-            reloading.set(false)
+        if (true) {
+            try {
+                loadSerializedList<DataItem>(romsFile).forEach {
+                    if (it is HeaderItem)
+                        adapter.addItem(HeaderViewItem(it.title))
+                    else if (it is AppItem)
+                        adapter.addItem(it.toViewItem())
+                }
+                return
+            } catch (e : Exception) {
+                Log.w(TAG, "Ran into exception while loading: ${e.message}")
+            }
         }
     }
 
