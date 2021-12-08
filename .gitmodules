@@ -25,6 +25,7 @@
 [submodule "Vulkan-Hpp"]
 	path = app/libraries/vkhpp
 	url = https://github.com/KhronosGroup/Vulkan-Hpp
+	branch = master
 [submodule "Vulkan Memory Allocator"]
 	path = app/libraries/vkma
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
@@ -51,3 +52,7 @@
 [submodule "Shader Compiler"]
 	path = app/libraries/shader-compiler
 	url = https://github.com/skyline-emu/shader-compiler.git
+[submodule "app/libraries/adrenotools"]
+	path = app/libraries/adrenotools
+	url = https://github.com/bylaws/libadrenotools/
+	branch = master

@@ -60,6 +60,7 @@ add_compile_definitions(VK_USE_PLATFORM_ANDROID_KHR) # We want all the Android-s
 add_compile_definitions(VULKAN_HPP_NO_SPACESHIP_OPERATOR) # libcxx doesn't implement operator<=> for std::array which breaks this
 add_compile_definitions(VULKAN_HPP_NO_STRUCT_CONSTRUCTORS) # We want to use designated initializers in Vulkan-Hpp
 add_compile_definitions(VULKAN_HPP_DISPATCH_LOADER_DYNAMIC=1) # We use the dynamic loader rather than the static one to avoid an additional level of indirection
+add_compile_definitions(VULKAN_HPP_ENABLE_DYNAMIC_LOADER_TOOL=0) # We disable the dynamic loader tool so we can supply our own getInstanceProcAddress function from a custom driver
 include_directories(SYSTEM "libraries/vkhpp")
 include_directories(SYSTEM "libraries/vkhpp/Vulkan-Headers/include") # We use base Vulkan headers from this to ensure version parity with Vulkan-Hpp
 
@@ -103,6 +104,10 @@ add_subdirectory("libraries/range")
 
 # Sirit
 add_subdirectory("libraries/sirit")
+
+# Adreno Tools
+include_directories(SYSTEM "libraries/adrenotools/include")
+add_subdirectory("libraries/adrenotools")
 
 # Build Skyline with full debugging data and -Og for debug builds
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g3 -glldb -gdwarf-5")
@@ -303,4 +308,4 @@ target_include_directories(skyline PRIVATE ${source_DIR}/skyline)
 target_compile_options(skyline PRIVATE -Wall -Wno-unknown-attributes -Wno-c++20-extensions -Wno-c++17-extensions -Wno-c99-designator -Wno-reorder -Wno-missing-braces -Wno-unused-variable -Wno-unused-private-field -Wno-dangling-else -Wconversion)
 
 target_link_libraries(skyline PRIVATE shader_recompiler)
-target_link_libraries_system(skyline android perfetto fmt lz4_static tzcode oboe vkma mbedcrypto opus Boost::intrusive Boost::container range-v3)
+target_link_libraries_system(skyline android perfetto fmt lz4_static tzcode oboe vkma mbedcrypto opus Boost::intrusive Boost::container range-v3 adrenotools)
