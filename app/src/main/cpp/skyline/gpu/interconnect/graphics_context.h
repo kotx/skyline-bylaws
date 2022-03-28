@@ -1727,6 +1727,7 @@ namespace skyline::gpu::interconnect {
                     case MaxwellTopology::TriangleStripWithAdjacency: return {VkTopology::eTriangleStripWithAdjacency, ShaderTopology::TrianglesAdjacency};
 
                     case MaxwellTopology::PatchList: return {VkTopology::ePatchList, ShaderTopology::Triangles};
+                    case MaxwellTopology::QuadList: return {VkTopology::eTriangleList, ShaderTopology::Triangles};
 
                     // @fmt:on
 
@@ -2007,7 +2008,27 @@ namespace skyline::gpu::interconnect {
                     throw exception("Unsupported TIC Header Type: {}", static_cast<u32>(textureControl.headerType));
                 }
 
+
+                if (guest.dimensions.depth == 1) {
+                    if (guest.dimensions.width == 40 && guest.dimensions.height == 46)
+                        guest.dimensions.width = 48;
+                    else if (guest.dimensions.width == 40 && guest.dimensions.height == 48)
+                        guest.dimensions.width = 48;
+                    else if (guest.dimensions.width == 20 && guest.dimensions.height == 24)
+                        guest.dimensions.width = 32;
+                    else if (guest.dimensions.width == 24 && guest.dimensions.height == 576)
+                        guest.dimensions.width = 32;
+                    else if (guest.dimensions.width == 300 && guest.dimensions.height == 256)
+                        guest.dimensions.width = 304;
+                    else if (guest.dimensions.width == 70 && guest.dimensions.height == 40)
+                        guest.dimensions.width = 128;
+                    else if (guest.dimensions.width == 640 && guest.dimensions.height == 720)
+                        guest.dimensions.width = 1280;
+                }
+
+
                 auto mappings{channelCtx.asCtx->gmmu.TranslateRange(textureControl.Iova(), guest.GetLayerSize() * (guest.layerCount - guest.baseArrayLayer))};
+
                 guest.mappings.assign(mappings.begin(), mappings.end());
             } else if (auto textureView{poolTexture.view.lock()}; textureView != nullptr) {
                 // If the entry already exists and the view is still valid then we return it directly

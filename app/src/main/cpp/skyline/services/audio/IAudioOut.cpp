@@ -30,7 +30,6 @@ namespace skyline::service::audio {
 
     Result IAudioOut::StopAudioOut(type::KSession &session, ipc::IpcRequest &request, ipc::IpcResponse &response) {
         Logger::Debug("Stop playback");
-        track->Stop();
         return {};
     }
 

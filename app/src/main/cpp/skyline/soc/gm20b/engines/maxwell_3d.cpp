@@ -6,6 +6,7 @@
 #include <soc.h>
 #include "maxwell_3d.h"
 
+bool extState = true;
 namespace skyline::soc::gm20b::engine::maxwell3d {
     Maxwell3D::Maxwell3D(const DeviceState &state, ChannelContext &channelCtx, MacroState &macroState, gpu::interconnect::CommandExecutor &executor)
         : MacroEngineBase(macroState),
@@ -593,11 +594,13 @@ namespace skyline::soc::gm20b::engine::maxwell3d {
             })
 
             ENGINE_CASE(drawVertexCount, {
-                context.DrawVertex(drawVertexCount, *registers.drawVertexFirst);
+                if (extState)
+                    context.DrawVertex(drawVertexCount, *registers.drawVertexFirst);
             })
 
             ENGINE_CASE(drawIndexCount, {
-                context.DrawIndexed(drawIndexCount, *registers.drawIndexFirst, *registers.drawBaseVertex);
+                if (extState)
+                    context.DrawIndexed(drawIndexCount, *registers.drawIndexFirst, *registers.drawBaseVertex);
             })
 
             ENGINE_STRUCT_CASE(semaphore, info, {
@@ -692,6 +695,7 @@ namespace skyline::soc::gm20b::engine::maxwell3d {
 
                 i64 nsTime{util::GetTimeNs()};
                 i64 timestamp{(nsTime / NsToTickDenominator) * NsToTickNumerator + ((nsTime % NsToTickDenominator) * NsToTickNumerator) / NsToTickDenominator};
+                timestamp /= 256;
 
                 channelCtx.asCtx->gmmu.Write<FourWordResult>(registers.semaphore->address,
                                                              FourWordResult{result, static_cast<u64>(timestamp)});

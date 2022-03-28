@@ -102,11 +102,11 @@ namespace skyline::gpu {
         }
 
         [[nodiscard]] u32 ReadCbufValue(u32 cbuf_index, u32 cbuf_offset) final {
-            throw exception("Not implemented");
+            return 0;
         }
 
         [[nodiscard]] Shader::TextureType ReadTextureType(u32 raw_handle) final {
-            throw exception("Not implemented");
+            return Shader::TextureType::Color2D;
         }
 
         [[nodiscard]] u32 TextureBoundBuffer() const final {
@@ -124,6 +124,8 @@ namespace skyline::gpu {
         [[nodiscard]] std::array<u32, 3> WorkgroupSize() const final {
             return {0, 0, 0}; // Only relevant for compute shaders
         }
+        void Dump(u64 hash) {}
+
     };
 
     /**
@@ -163,6 +165,8 @@ namespace skyline::gpu {
         [[nodiscard]] std::array<u32, 3> WorkgroupSize() const final {
             return {0, 0, 0}; // Only relevant for compute shaders
         }
+
+        void Dump(u64 hash)  {}
     };
 
     ShaderManager::DualVertexShaderProgram::DualVertexShaderProgram(Shader::IR::Program ir, std::shared_ptr<ShaderProgram> vertexA, std::shared_ptr<ShaderProgram> vertexB) : ShaderProgram{std::move(ir)}, vertexA(std::move(vertexA)), vertexB(std::move(vertexB)) {}

@@ -85,6 +85,11 @@ android {
                 srcDir "libraries/vklayers"
             }
         }
+        release {
+            jniLibs {
+                srcDir "libraries/vklayers"
+            }
+        }
     }
 }
 

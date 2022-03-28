@@ -118,6 +118,10 @@ namespace skyline::nce {
             if (staticNce && staticNce->TrapHandler(reinterpret_cast<u8 *>(info->si_addr), true))
                 return;
 
+            mprotect(reinterpret_cast<void *>(info->si_addr), PAGE_SIZE, PROT_READ | PROT_WRITE);
+
+            return;
+
             bool runningUnderDebugger{[]() {
                 static std::ifstream status("/proc/self/status");
                 status.seekg(0);

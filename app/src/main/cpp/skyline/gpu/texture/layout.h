@@ -55,7 +55,8 @@ namespace skyline::gpu::texture {
                         u32 xT{((index << 3) & 0b10000) | ((index << 1) & 0b100000)}; // Morton-Swizzle on the X-axis
                         u32 yT{((index >> 1) & 0b110) | (index & 0b1)}; // Morton-Swizzle on the Y-axis
 
-                        copySector(linearBlock + (yT * robWidthUnalignedBytes) + xT, xT);
+                        if (yT < surfaceHeightLines)
+                            copySector(linearBlock + (yT * robWidthUnalignedBytes) + xT, xT);
                     }
 
                     linearBlock += gobYOffset; // Increment the linear GOB to the next Y-axis GOB

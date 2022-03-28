@@ -5,6 +5,8 @@
 #include "npad_device.h"
 #include "npad.h"
 
+extern bool extState;
+
 namespace skyline::input {
     NpadDevice::NpadDevice(NpadManager &manager, NpadSection &section, NpadId id)
         : manager(manager),
@@ -211,6 +213,9 @@ namespace skyline::input {
     void NpadDevice::SetButtonState(NpadButton mask, bool pressed) {
         if (!connectionState.connected)
             return;
+
+
+        extState = !mask.zr;
 
         auto &entry{GetNextEntry(*controllerInfo)};
 
