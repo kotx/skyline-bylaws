@@ -849,7 +849,6 @@ namespace skyline::gpu::interconnect {
                 auto &pipelineStage{pipelineStages[shader.ToPipelineStage()]};
                 if (shader.enabled) {
                     // We only want to include the shader if it is enabled on the guest
-                    if (shader.invalidated) {
                         // If a shader is invalidated, we need to reparse the program (given that it has changed)
 
                         bool shouldParseShader{[&]() {
@@ -873,7 +872,6 @@ namespace skyline::gpu::interconnect {
                             }
                         }()};
 
-                        if (shouldParseShader) {
                             // A pass to check if the shader has a BRA infloop opcode ending (On most commercial games)
                             shader.data.resize(MaxShaderBytecodeSize);
                             auto foundEnd{channelCtx.asCtx->gmmu.ReadTill(shader.data, shaderBaseIova + shader.offset, [](span<u8> data) -> std::optional<size_t> {
@@ -915,10 +913,8 @@ namespace skyline::gpu::interconnect {
 
                             pipelineStage.enabled = true;
                             pipelineStage.needsRecompile = true;
-                        }
 
                         shader.invalidated = false;
-                    }
                 } else if (shader.stage != ShaderCompiler::Stage::VertexA) {
                     pipelineStage.enabled = false;
                 }
