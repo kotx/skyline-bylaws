@@ -219,7 +219,7 @@ namespace skyline::gpu {
         pCycle->AttachObject(std::make_shared<BufferGuestSync>(shared_from_this()));
         cycle = pCycle;
     }
-    
+
     void Buffer::SynchronizeGuestImmediate(const std::shared_ptr<FenceCycle> &pCycle, const std::function<void()> &flushHostCallback) {
         // If this buffer was attached to the current cycle, flush all pending host GPU work and wait to ensure that we read valid data
         if (cycle.owner_before(pCycle))
