@@ -27,6 +27,7 @@ namespace skyline::gpu::cache {
             vk::PipelineDepthStencilStateCreateInfo &depthStencilState;
             vk::PipelineColorBlendStateCreateInfo &colorBlendState;
 
+            span<TextureView *> inputAttachments; //!< All input attachments in the subpass of this pipeline
             span<TextureView *> colorAttachments; //!< All color attachments in the subpass of this pipeline
             TextureView *depthStencilAttachment; //!< A nullable pointer to the depth/stencil attachment in the subpass of this pipeline
 
@@ -86,6 +87,7 @@ namespace skyline::gpu::cache {
             vk::PipelineColorBlendStateCreateInfo colorBlendState;
             std::vector<vk::PipelineColorBlendAttachmentState> colorBlendAttachments;
 
+            std::vector<AttachmentMetadata> inputAttachments;
             std::vector<AttachmentMetadata> colorAttachments;
             std::optional<AttachmentMetadata> depthStencilAttachment;
 

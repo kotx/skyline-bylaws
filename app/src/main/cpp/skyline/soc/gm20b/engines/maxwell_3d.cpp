@@ -215,6 +215,10 @@ namespace skyline::soc::gm20b::engine::maxwell3d {
                     context.UpdateClearDepthValue(clearDepthValue);
                 })
 
+                ENGINE_CASE(tiledCacheEnable, {
+                    context.SetTiledCacheEnabled(tiledCacheEnable);
+                })
+
                 ENGINE_CASE(clearStencilValue, {
                     context.UpdateClearStencilValue(clearStencilValue);
                 })

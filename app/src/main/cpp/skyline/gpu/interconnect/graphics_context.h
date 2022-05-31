@@ -871,6 +871,7 @@ namespace skyline::gpu::interconnect {
             };
 
             DescriptorSetWrites descriptorSetWrites; //!< The writes to the descriptor set that need to be done prior to executing a pipeline
+            boost::container::small_vector<TextureView *, 2> inputAttachments;
         };
 
         /**
@@ -922,7 +923,7 @@ namespace skyline::gpu::interconnect {
          * @note The return value of previous calls will be invalidated on a call to this as values are provided by reference
          * @note Any bound resources will automatically be attached to the CommandExecutor, there's no need to manually attach them
          */
-        ShaderProgramState CompileShaderProgramState() {
+        ShaderProgramState CompileShaderProgramState(texture::Dimensions renderArea) {
             for (auto &shader : shaders) {
                 auto &pipelineStage{pipelineStages[shader.ToPipelineStage()]};
                 if (shader.enabled) {
@@ -957,6 +958,15 @@ namespace skyline::gpu::interconnect {
                             case TicType::eCubeArray:
                                 return ShaderType::ColorArrayCube;
                         }
+                    }};
+
+                    auto wasRenderTarget{[this, renderArea](u32 handle) {
+                        auto view{GetPoolTextureView(BindlessTextureHandle{handle}.textureIndex)};
+                        if ((view->mapping.a != vk::ComponentSwizzle::eA && view->mapping.a != vk::ComponentSwizzle::eIdentity) || (view->mapping.r != vk::ComponentSwizzle::eR && view->mapping.r != vk::ComponentSwizzle::eIdentity) || (view->mapping.g != vk::ComponentSwizzle::eG && view->mapping.g != vk::ComponentSwizzle::eIdentity) || (view->mapping.b != vk::ComponentSwizzle::eB && view->mapping.b != vk::ComponentSwizzle::eIdentity))
+                            return false;
+                       // if (view->texture->dimensions != renderArea)
+                            return false;
+                        return executor.WasRenderTarget(view.get());
                     }};
 
                     if (!shader.invalidated && shader.program)
@@ -1003,7 +1013,7 @@ namespace skyline::gpu::interconnect {
                                 return std::nullopt;
                             });
 
-                            shader.program = gpu.shader.ParseGraphicsShader(shader.stage, shader.bytecode, shader.offset, bindlessTextureConstantBufferIndex, readConstantBuffer, getTextureType);
+                            shader.program = gpu.shader.ParseGraphicsShader(shader.stage, shader.bytecode, shader.offset, bindlessTextureConstantBufferIndex, readConstantBuffer, getTextureType, wasRenderTarget);
 
                             if (shader.stage != ShaderCompiler::Stage::VertexA && shader.stage != ShaderCompiler::Stage::VertexB) {
                                 pipelineStage.program = shader.program;
@@ -1047,7 +1057,7 @@ namespace skyline::gpu::interconnect {
                 if (pipelineStage.enabled) {
                     auto &program{pipelineStage.program->program};
                     bufferCount += program.info.constant_buffer_descriptors.size() + program.info.storage_buffers_descriptors.size();
-                    imageCount += program.info.texture_descriptors.size();
+                    imageCount += program.info.texture_descriptors.size() + program.info.input_attachment_descriptors.size();
                 }
             }
             bufferDescriptors.resize(bufferCount);
@@ -1061,6 +1071,7 @@ namespace skyline::gpu::interconnect {
             size_t bufferIndex{}, imageIndex{};
             boost::container::static_vector<vk::ShaderModule, maxwell3d::PipelineStageCount> shaderModules;
             boost::container::static_vector<vk::PipelineShaderStageCreateInfo, maxwell3d::PipelineStageCount> shaderStages;
+            boost::container::small_vector<TextureView *, 2> inputAttachments;
             for (auto &pipelineStage : pipelineStages) {
                 if (!pipelineStage.enabled)
                     continue;
@@ -1147,7 +1158,9 @@ namespace skyline::gpu::interconnect {
                         auto view{GetSsboViewFromDescriptor(storageBuffer, pipelineStage.constantBuffers)};
 
                         std::scoped_lock lock{view};
-                        view->buffer->MarkGpuDirty(); // SSBOs may be written to by the GPU so mark as dirty (will also disable megabuffering)
+                        if (storageBuffer.is_written)
+                            view->buffer->MarkGpuDirty(); // This SSBO is written to by the GPU so mark as dirty (will also disable megabuffering)
+
                         view.RegisterUsage([descriptor = bufferDescriptors.data() + bufferIndex++](const Buffer::BufferViewStorage &view, const std::shared_ptr<Buffer> &buffer) {
                             *descriptor = vk::DescriptorBufferInfo{
                                 .buffer = buffer->GetBacking(),
@@ -1214,7 +1227,37 @@ namespace skyline::gpu::interconnect {
                 if (!program.info.image_descriptors.empty())
                     Logger::Warn("Found {} image descriptor", program.info.image_descriptors.size());
 
-                shaderModules.emplace_back(pipelineStage.vkModule);
+                if (!program.info.input_attachment_descriptors.empty()) {
+                    descriptorWrites.push_back(vk::WriteDescriptorSet{
+                        .dstBinding = bindingIndex,
+                        .descriptorCount = static_cast<u32>(program.info.input_attachment_descriptors.size()),
+                        .descriptorType = vk::DescriptorType::eInputAttachment,
+                        .pImageInfo = imageDescriptors.data() + imageIndex,
+                    });
+
+                    for (auto &inputAttachment : program.info.input_attachment_descriptors) {
+                        layoutBindings.push_back(vk::DescriptorSetLayoutBinding{
+                            .binding = bindingIndex++,
+                            .descriptorType = vk::DescriptorType::eInputAttachment,
+                            .descriptorCount = 1,
+                            .stageFlags = vk::ShaderStageFlagBits::eFragment,
+                        });
+
+                        auto &constantBuffer{pipelineStage.constantBuffers[inputAttachment.cbuf_index]};
+                        BindlessTextureHandle handle{constantBuffer.Read<u32>(executor, inputAttachment.cbuf_offset)};
+
+                        auto textureView{GetPoolTextureView(handle.textureIndex)};
+
+                        std::scoped_lock lock(*textureView);
+                        imageDescriptors[imageIndex++] = vk::DescriptorImageInfo{
+                            .imageView = textureView->GetView(),
+                            .imageLayout = textureView->texture->layout,
+                        };
+                        inputAttachments.push_back(textureView.get());
+                        executor.AttachTexture(textureView.get());
+                    }
+                }
+
                 shaderStages.emplace_back(vk::PipelineShaderStageCreateInfo{
                     .stage = pipelineStage.vkStage,
                     .module = pipelineStage.vkModule,
@@ -1227,6 +1270,7 @@ namespace skyline::gpu::interconnect {
                 std::move(shaderStages),
                 {layoutBindings.begin(), layoutBindings.end()},
                 std::move(descriptorSetWrites),
+                std::move(inputAttachments),
             };
         }
 
@@ -2790,6 +2834,22 @@ namespace skyline::gpu::interconnect {
 
         /* Draws */
       public:
+        void SetTiledCacheEnabled(bool enabled) {
+            executor.AddGeneralCommand([=] (vk::raii::CommandBuffer &commandBuffer, const std::shared_ptr<FenceCycle> &cycle, GPU &) {
+                if (!gpu.vkDebugUtilsEnabled)
+                    return;
+
+                vk::DebugUtilsLabelEXT label{
+                    .pLabelName = "Tiled Cache Enabled",
+                    .color = std::array<float, 4>{0.1f, 0.1f, 0.8f, 1.0f},
+                };
+                if (enabled)
+                    commandBuffer.beginDebugUtilsLabelEXT(label);
+                else
+                    commandBuffer.endDebugUtilsLabelEXT();
+            });
+        }
+
         template<bool IsIndexed>
         void Draw(u32 count, u32 first, u32 instanceCount = 1, i32 vertexOffset = 0) {
             ValidatePrimitiveRestartState();
@@ -2895,6 +2955,8 @@ namespace skyline::gpu::interconnect {
                 executor.AttachTexture(depthRenderTargetView);
             }
 
+            auto renderArea{activeColorRenderTargets.empty() ? depthRenderTarget.guest.dimensions : activeColorRenderTargets.front()->texture->dimensions};
+
             // Pipeline Creation
             vk::StructureChain<vk::PipelineVertexInputStateCreateInfo, vk::PipelineVertexInputDivisorStateCreateInfoEXT> vertexState{
                 vk::PipelineVertexInputStateCreateInfo{
@@ -2919,7 +2981,7 @@ namespace skyline::gpu::interconnect {
                 .scissorCount = static_cast<u32>(multiViewport ? maxwell3d::ViewportCount : 1),
             };
 
-            auto programState{CompileShaderProgramState()};
+            auto programState{CompileShaderProgramState(renderArea)};
             auto compiledPipeline{gpu.graphicsPipelineCache.GetCompiledPipeline(cache::GraphicsPipelineCache::PipelineState{
                 .shaderStages = programState.shaderStages,
                 .vertexState = vertexState,
@@ -2930,6 +2992,7 @@ namespace skyline::gpu::interconnect {
                 .multisampleState = multisampleState,
                 .depthStencilState = depthState,
                 .colorBlendState = blendState,
+                .inputAttachments = programState.inputAttachments,
                 .colorAttachments = activeColorRenderTargets,
                 .depthStencilAttachment = depthRenderTargetView,
             }, programState.descriptorSetBindings)};
@@ -2952,10 +3015,10 @@ namespace skyline::gpu::interconnect {
                     drawStorage = std::make_shared<DrawStorage>(std::move(programState.descriptorSetWrites), gpu.descriptor.AllocateSet(compiledPipeline.descriptorSetLayout));
                 }
             }
+            bool hadinp = programState.inputAttachments.size() > 0;
 
             // Submit Draw
             executor.AddSubpass([=, drawStorage = std::move(drawStorage), &vkDevice = gpu.vkDevice, pipelineLayout = compiledPipeline.pipelineLayout, pipeline = compiledPipeline.pipeline, supportsPushDescriptors = gpu.traits.supportsPushDescriptors](vk::raii::CommandBuffer &commandBuffer, const std::shared_ptr<FenceCycle> &cycle, GPU &, vk::RenderPass renderPass, u32 subpassIndex) mutable {
-
                 auto &vertexBufferHandles{boundVertexBuffers->handles};
                 for (u32 bindingIndex{}; bindingIndex != vertexBufferHandles.size(); bindingIndex++) {
                     // We need to bind all non-null vertex buffers while skipping any null ones
@@ -2984,15 +3047,26 @@ namespace skyline::gpu::interconnect {
 
                 commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 
+                if (hadinp && gpu.vkDebugUtilsEnabled) {
+                    vk::DebugUtilsLabelEXT label{
+                        .pLabelName = "Skyline Merged",
+                        .color = std::array<float, 4>{0.8f, 0.1f, 0.2f, 1.0f},
+                    };
+                    commandBuffer.beginDebugUtilsLabelEXT(label);
+                }
+
                 if constexpr (IsIndexed) {
                     commandBuffer.bindIndexBuffer(boundIndexBuffer->handle, boundIndexBuffer->offset, boundIndexBuffer->type);
                     commandBuffer.drawIndexed(count, instanceCount, first, vertexOffset, 0);
                 } else {
                     commandBuffer.draw(count, instanceCount, first, 0);
                 }
+
+                if (hadinp && gpu.vkDebugUtilsEnabled)
+                    commandBuffer.endDebugUtilsLabelEXT();
             }, vk::Rect2D{
-                .extent = activeColorRenderTargets.empty() ? depthRenderTarget.guest.dimensions : activeColorRenderTargets.front()->texture->dimensions,
-            }, {}, activeColorRenderTargets, depthRenderTargetView, !gpu.traits.quirks.relaxedRenderPassCompatibility);
+                .extent = renderArea,
+            }, programState.inputAttachments, activeColorRenderTargets, depthRenderTargetView, !gpu.traits.quirks.relaxedRenderPassCompatibility);
         }
 
         void Draw(u32 vertexCount, u32 firstVertex, u32 instanceCount) {

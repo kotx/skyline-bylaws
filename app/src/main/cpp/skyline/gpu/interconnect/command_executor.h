@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <range/v3/algorithm.hpp>
 #include <boost/container/stable_vector.hpp>
 #include <unordered_set>
 #include "command_nodes.h"
@@ -29,6 +30,8 @@ namespace skyline::gpu::interconnect {
         span<TextureView *> lastSubpassColorAttachments; //!< The set of color attachments used in the last subpass
         TextureView *lastSubpassDepthStencilAttachment{}; //!< The depth stencil attachment used in the last subpass
 
+        std::vector<TextureView *> pastColorAttachments; //!< The set of color attachments used in the last subpass
+
         std::vector<std::function<void()>> flushCallbacks; //!< Set of persistent callbacks that will be called at the start of Execute in order to flush data required for recording
 
         /**
@@ -50,6 +53,9 @@ namespace skyline::gpu::interconnect {
 
         ~CommandExecutor();
 
+        bool WasRenderTarget(TextureView *texture) {
+            return ranges::find_if(pastColorAttachments, [&](TextureView *tex) { return tex->texture == texture->texture; }) != pastColorAttachments.end();
+        }
         /**
          * @brief Attach the lifetime of the texture to the command buffer
          * @note The supplied texture **must** be locked by the calling thread
@@ -92,6 +98,11 @@ namespace skyline::gpu::interconnect {
          * @brief Adds a command that needs to be executed outside the scope of a render pass
          */
         void AddOutsideRpCommand(std::function<void(vk::raii::CommandBuffer &, const std::shared_ptr<FenceCycle> &, GPU &)> &&function);
+
+        /**
+         * @brief Adds a command that can be executed in any scope
+         */
+        void AddGeneralCommand(std::function<void(vk::raii::CommandBuffer &, const std::shared_ptr<FenceCycle> &, GPU &)> &&function);
 
         /**
          * @brief Adds a persistent callback that will be called at the start of Execute in order to flush data required for recording

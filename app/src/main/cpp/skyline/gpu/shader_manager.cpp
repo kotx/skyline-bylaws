@@ -90,12 +90,13 @@ namespace skyline::gpu {
         u32 textureBufferIndex;
         ShaderManager::ConstantBufferRead constantBufferRead;
         ShaderManager::GetTextureType getTextureType;
+        ShaderManager::WasRenderTarget wasRenderTarget;
 
       public:
         std::vector<ShaderManager::ConstantBufferWord> constantBufferWords;
         std::vector<ShaderManager::CachedTextureType> textureTypes;
 
-        GraphicsEnvironment(Shader::Stage pStage, span<u8> pBinary, u32 baseOffset, u32 textureBufferIndex, ShaderManager::ConstantBufferRead constantBufferRead, ShaderManager::GetTextureType getTextureType) : binary{pBinary}, baseOffset{baseOffset}, textureBufferIndex{textureBufferIndex}, constantBufferRead{std::move(constantBufferRead)}, getTextureType{std::move(getTextureType)} {
+        GraphicsEnvironment(Shader::Stage pStage, span<u8> pBinary, u32 baseOffset, u32 textureBufferIndex, ShaderManager::ConstantBufferRead constantBufferRead, ShaderManager::GetTextureType getTextureType, ShaderManager::WasRenderTarget wasRenderTarget) : binary{pBinary}, baseOffset{baseOffset}, textureBufferIndex{textureBufferIndex}, constantBufferRead{std::move(constantBufferRead)}, getTextureType{std::move(getTextureType)}, wasRenderTarget{std::move(wasRenderTarget)} {
             stage = pStage;
             sph = *reinterpret_cast<Shader::ProgramHeader *>(binary.data());
             start_address = baseOffset;
@@ -137,6 +138,10 @@ namespace skyline::gpu {
         }
 
         void Dump(u64 hash) final {}
+
+        bool WasRenderTarget(u32 handle) const final {
+            return wasRenderTarget(handle);
+        }
     };
 
     /**
@@ -178,6 +183,10 @@ namespace skyline::gpu {
         }
 
         void Dump(u64 hash) final {}
+
+        bool WasRenderTarget(u32 handle) const final {
+            return false;
+        }
     };
 
     constexpr ShaderManager::ConstantBufferWord::ConstantBufferWord(u32 index, u32 offset, u32 value) : index(index), offset(offset), value(value) {}
@@ -249,7 +258,7 @@ namespace skyline::gpu {
         return vertexA->VerifyState(constantBufferRead, getTextureType) && vertexB->VerifyState(constantBufferRead, getTextureType);
     }
 
-    std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::ParseGraphicsShader(Shader::Stage stage, span<u8> binary, u32 baseOffset, u32 textureConstantBufferIndex, const ConstantBufferRead &constantBufferRead, const GetTextureType &getTextureType) {
+    std::shared_ptr<ShaderManager::ShaderProgram> ShaderManager::ParseGraphicsShader(Shader::Stage stage, span<u8> binary, u32 baseOffset, u32 textureConstantBufferIndex, const ConstantBufferRead &constantBufferRead, const GetTextureType &getTextureType, const WasRenderTarget &wasRenderTarget) {
         std::unique_lock lock{programMutex};
 
         auto it{programCache.find(GuestShaderLookup{stage, binary, textureConstantBufferIndex, constantBufferRead, getTextureType})};
@@ -259,7 +268,7 @@ namespace skyline::gpu {
         lock.unlock();
 
         auto program{std::make_shared<SingleShaderProgram>()};
-        GraphicsEnvironment environment{stage, binary, baseOffset, textureConstantBufferIndex, constantBufferRead, getTextureType};
+        GraphicsEnvironment environment{stage, binary, baseOffset, textureConstantBufferIndex, constantBufferRead, getTextureType, wasRenderTarget};
         Shader::Maxwell::Flow::CFG cfg(environment, program->flowBlockPool, Shader::Maxwell::Location{static_cast<u32>(baseOffset + sizeof(Shader::ProgramHeader))});
         program->program = Shader::Maxwell::TranslateProgram(program->instructionPool, program->blockPool, environment, cfg, hostTranslateInfo);
         program->constantBufferWords = std::move(environment.constantBufferWords);
@@ -298,10 +307,10 @@ namespace skyline::gpu {
         if (program != other.program)
             return false;
 
-        if (bindings.unified != other.bindings.unified || bindings.uniform_buffer != other.bindings.uniform_buffer || bindings.storage_buffer != other.bindings.storage_buffer || bindings.texture != other.bindings.texture || bindings.image != other.bindings.image || bindings.texture_scaling_index != other.bindings.texture_scaling_index || bindings.image_scaling_index != other.bindings.image_scaling_index)
+        if (bindings.unified != other.bindings.unified || bindings.uniform_buffer != other.bindings.uniform_buffer || bindings.storage_buffer != other.bindings.storage_buffer || bindings.input_attachment !=  other.bindings.input_attachment || bindings.texture != other.bindings.texture || bindings.image != other.bindings.image || bindings.texture_scaling_index != other.bindings.texture_scaling_index || bindings.image_scaling_index != other.bindings.image_scaling_index)
             return false;
 
-        static_assert(sizeof(Shader::Backend::Bindings) == 0x1C);
+        static_assert(sizeof(Shader::Backend::Bindings) == 0x20);
 
         if (!std::equal(runtimeInfo.generic_input_types.begin(), runtimeInfo.generic_input_types.end(), other.runtimeInfo.generic_input_types.begin()))
             return false;

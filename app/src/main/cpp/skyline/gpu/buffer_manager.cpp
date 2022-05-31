@@ -6,7 +6,9 @@
 #include "buffer_manager.h"
 
 namespace skyline::gpu {
-    MegaBuffer::MegaBuffer(GPU &gpu) : backing(gpu.memory.AllocateBuffer(Size)), freeRegion(backing.subspan(PAGE_SIZE)) {}
+    MegaBuffer::MegaBuffer(GPU &gpu) : backing(gpu.memory.AllocateBuffer(Size)), freeRegion(backing.subspan(PAGE_SIZE)) {
+        gpu.SetObjectName(backing.vkBuffer, "MegaBuffer");
+    }
 
     void MegaBuffer::Reset() {
         std::scoped_lock lock{mutex};

@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 set(source_DIR ${CMAKE_SOURCE_DIR}/src/main/cpp)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-strict-aliasing -Wno-unused-command-line-argument")
-set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -flto=full -fno-stack-protector -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-Ofast -g -flto=full -fno-stack-protector -DNDEBUG")
 
 # Build all libraries with -Ofast but with default debug data (-g) for debug builds
 set(CMAKE_CXX_FLAGS_DEBUG "-Ofast")
@@ -330,7 +330,7 @@ add_library(skyline SHARED
         )
 target_include_directories(skyline PRIVATE ${source_DIR}/skyline)
 # target_precompile_headers(skyline PRIVATE ${source_DIR}/skyline/common.h) # PCH will currently break Intellisense
-target_compile_options(skyline PRIVATE -Wall -Wno-unknown-attributes -Wno-c++20-extensions -Wno-c++17-extensions -Wno-c99-designator -Wno-reorder -Wno-missing-braces -Wno-unused-variable -Wno-unused-private-field -Wno-dangling-else -Wconversion -fsigned-bitfields)
+target_compile_options(skyline PRIVATE -g -Wall -Wno-unknown-attributes -Wno-c++20-extensions -Wno-c++17-extensions -Wno-c99-designator -Wno-reorder -Wno-missing-braces -Wno-unused-variable -Wno-unused-private-field -Wno-dangling-else -Wconversion -fsigned-bitfields)
 
 target_link_libraries(skyline PRIVATE shader_recompiler)
 target_link_libraries_system(skyline android perfetto fmt lz4_static tzcode oboe vkma mbedcrypto opus Boost::intrusive Boost::container range-v3 adrenotools)

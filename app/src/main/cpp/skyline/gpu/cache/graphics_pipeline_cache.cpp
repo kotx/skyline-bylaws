@@ -36,8 +36,12 @@ namespace skyline::gpu::cache {
 
         colorBlendState.pAttachments = colorBlendAttachments.data();
 
+        for (auto &inputAttachment : state.inputAttachments)
+            inputAttachments.emplace_back(AttachmentMetadata{inputAttachment->format->vkFormat, inputAttachment->texture->sampleCount});
+
         for (auto &colorAttachment : state.colorAttachments)
             colorAttachments.emplace_back(AttachmentMetadata{colorAttachment->format->vkFormat, colorAttachment->texture->sampleCount});
+
         if (state.depthStencilAttachment)
             depthStencilAttachment.emplace(AttachmentMetadata{state.depthStencilAttachment->format->vkFormat, state.depthStencilAttachment->texture->sampleCount});
     }
@@ -122,6 +126,12 @@ namespace skyline::gpu::cache {
     size_t GraphicsPipelineCache::PipelineStateHash::operator()(const GraphicsPipelineCache::PipelineState &key) const {
         size_t hash{HashCommonPipelineState(key)};
 
+        HASH(key.inputAttachments.size());
+        for (const auto &attachment : key.inputAttachments) {
+            HASH(attachment->format->vkFormat);
+            HASH(attachment->texture->sampleCount);
+        }
+
         HASH(key.colorAttachments.size());
         for (const auto &attachment : key.colorAttachments) {
             HASH(attachment->format->vkFormat);
@@ -139,6 +149,12 @@ namespace skyline::gpu::cache {
 
     size_t GraphicsPipelineCache::PipelineStateHash::operator()(const GraphicsPipelineCache::PipelineCacheKey &key) const {
         size_t hash{HashCommonPipelineState(key)};
+
+        HASH(key.inputAttachments.size());
+        for (const auto &attachment : key.inputAttachments) {
+            HASH(attachment.format);
+            HASH(attachment.sampleCount);
+        }
 
         HASH(key.colorAttachments.size());
         for (const auto &attachment : key.colorAttachments) {
@@ -240,6 +256,10 @@ namespace skyline::gpu::cache {
             KEYNEQ(colorBlendState.blendConstants)
         )
 
+        RETF(CARREQ(inputAttachments.begin(), inputAttachments.size(), {
+            return lhs.format == rhs->format->vkFormat && lhs.sampleCount == rhs->texture->sampleCount;
+        }))
+
         RETF(CARREQ(colorAttachments.begin(), colorAttachments.size(), {
             return lhs.format == rhs->format->vkFormat && lhs.sampleCount == rhs->texture->sampleCount;
         }))
@@ -312,19 +332,23 @@ namespace skyline::gpu::cache {
             .pipelineBindPoint = vk::PipelineBindPoint::eGraphics,
         };
 
+        size_t inputAttachmentBase{0};
+        for (auto &inputAttachment : state.inputAttachments)
+            pushAttachment(*inputAttachment);
+
+        size_t colorAttachmentBase{attachmentDescriptions.size()};
         for (auto &colorAttachment : state.colorAttachments)
             pushAttachment(*colorAttachment);
 
         if (state.depthStencilAttachment) {
             pushAttachment(*state.depthStencilAttachment);
-
-            subpassDescription.pColorAttachments = attachmentReferences.data();
-            subpassDescription.colorAttachmentCount = static_cast<u32>(attachmentReferences.size() - 1);
             subpassDescription.pDepthStencilAttachment = &attachmentReferences.back();
-        } else {
-            subpassDescription.pColorAttachments = attachmentReferences.data();
-            subpassDescription.colorAttachmentCount = static_cast<u32>(attachmentReferences.size());
         }
+
+        subpassDescription.pInputAttachments = &attachmentReferences[inputAttachmentBase];
+        subpassDescription.inputAttachmentCount = static_cast<u32>(state.inputAttachments.size());
+        subpassDescription.pColorAttachments = &attachmentReferences[colorAttachmentBase];
+        subpassDescription.colorAttachmentCount = static_cast<u32>(state.colorAttachments.size());
 
         vk::raii::RenderPass renderPass{gpu.vkDevice, vk::RenderPassCreateInfo{
             .attachmentCount = static_cast<u32>(attachmentDescriptions.size()),

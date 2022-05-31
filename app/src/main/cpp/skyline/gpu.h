@@ -29,6 +29,7 @@ namespace skyline::gpu {
 
       public:
         vk::raii::Context vkContext;
+        bool vkDebugUtilsEnabled{};
         vk::raii::Instance vkInstance;
         vk::raii::DebugReportCallbackEXT vkDebugReportCallback; //!< An RAII Vulkan debug report manager which calls into 'GPU::DebugCallback'
         vk::raii::PhysicalDevice vkPhysicalDevice;
@@ -53,5 +54,19 @@ namespace skyline::gpu {
         cache::FramebufferCache framebufferCache;
 
         GPU(const DeviceState &state);
+
+        template<typename T> requires requires (T v) { v.objectType; }
+        void SetObjectName(T object, std::string name) const {
+            if (!vkDebugUtilsEnabled)
+                return;
+
+            vk::DebugUtilsObjectNameInfoEXT info{
+                .objectType = object.objectType,
+                .objectHandle = reinterpret_cast<uint64_t>(typename T::NativeType{object}),
+                .pObjectName = name.c_str()
+            };
+
+            vkDevice.setDebugUtilsObjectNameEXT(info);
+        };
     };
 }

@@ -44,6 +44,7 @@ namespace skyline::gpu {
         };
 
         using GetTextureType = std::function<Shader::TextureType(u32 handle)>; //!< A function which determines the type of a texture from its handle by checking the corresponding TIC
+        using WasRenderTarget = std::function<bool(u32 handle)>; //!< A function which determines the type of a texture from its handle by checking the corresponding TIC
 
         struct CachedTextureType {
             u32 handle;
@@ -174,7 +175,7 @@ namespace skyline::gpu {
         /**
          * @return A shader program that corresponds to all the supplied state including the current state of the constant buffers
          */
-        std::shared_ptr<ShaderManager::ShaderProgram> ParseGraphicsShader(Shader::Stage stage, span<u8> binary, u32 baseOffset, u32 textureConstantBufferIndex, const ConstantBufferRead &constantBufferRead, const GetTextureType &getTextureType);
+        std::shared_ptr<ShaderManager::ShaderProgram> ParseGraphicsShader(Shader::Stage stage, span<u8> binary, u32 baseOffset, u32 textureConstantBufferIndex, const ConstantBufferRead &constantBufferRead, const GetTextureType &getTextureType, const WasRenderTarget &wasRenderTarget);
 
         /**
          * @brief Combines the VertexA and VertexB shader programs into a single program

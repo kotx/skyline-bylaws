@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright © 2021 Skyline Team and Contributors (https://github.com/skyline-emu/)
 
+#include <range/v3/algorithm.hpp>
 #include <dlfcn.h>
 #include <adrenotools/driver.h>
 #include <os.h>
@@ -8,7 +9,7 @@
 #include "gpu.h"
 
 namespace skyline::gpu {
-    static vk::raii::Instance CreateInstance(const DeviceState &state, const vk::raii::Context &context) {
+    static vk::raii::Instance CreateInstance(const DeviceState &state, const vk::raii::Context &context, bool &vkDebugUtilsEnabled) {
         vk::ApplicationInfo applicationInfo{
             .pApplicationName = "Skyline",
             .applicationVersion = static_cast<uint32_t>(state.jvm->GetVersionCode()), // Get the application version from JNI
@@ -33,7 +34,7 @@ namespace skyline::gpu {
         }
 
         for (const auto &requiredLayer : requiredLayers) {
-            if (!std::any_of(instanceLayers.begin(), instanceLayers.end(), [&](const vk::LayerProperties &instanceLayer) {
+            if (!ranges::any_of(instanceLayers, [&](const vk::LayerProperties &instanceLayer) {
                 return std::string_view(instanceLayer.layerName) == std::string_view(requiredLayer);
             }))
                 throw exception("Cannot find Vulkan layer: \"{}\"", requiredLayer);
@@ -54,18 +55,27 @@ namespace skyline::gpu {
         }
 
         for (const auto &requiredExtension : requiredInstanceExtensions) {
-            if (!std::any_of(instanceExtensions.begin(), instanceExtensions.end(), [&](const vk::ExtensionProperties &instanceExtension) {
+            if (!ranges::any_of(instanceExtensions, [&](const vk::ExtensionProperties &instanceExtension) {
                 return std::string_view(instanceExtension.extensionName) == std::string_view(requiredExtension);
             }))
                 throw exception("Cannot find Vulkan instance extension: \"{}\"", requiredExtension);
+        }
+
+        std::vector<const char *> enabledInstanceExtensions(requiredInstanceExtensions.begin(), requiredInstanceExtensions.end());
+
+        if (ranges::any_of(instanceExtensions, [&](const vk::ExtensionProperties &instanceExtension) {
+            return std::string_view(instanceExtension.extensionName) == std::string_view(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+        })) {
+            enabledInstanceExtensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+            vkDebugUtilsEnabled = false;
         }
 
         return vk::raii::Instance(context, vk::InstanceCreateInfo{
             .pApplicationInfo = &applicationInfo,
             .enabledLayerCount = requiredLayers.size(),
             .ppEnabledLayerNames = requiredLayers.data(),
-            .enabledExtensionCount = requiredInstanceExtensions.size(),
-            .ppEnabledExtensionNames = requiredInstanceExtensions.data(),
+            .enabledExtensionCount = static_cast<u32>(enabledInstanceExtensions.size()),
+            .ppEnabledExtensionNames = enabledInstanceExtensions.data(),
         });
     }
 
@@ -256,7 +266,7 @@ namespace skyline::gpu {
         };
 
         for (const auto &requiredExtension : enabledExtensions) {
-            if (!std::any_of(deviceExtensions.begin(), deviceExtensions.end(), [&](const vk::ExtensionProperties &deviceExtension) {
+            if (!ranges::any_of(deviceExtensions, [&](const vk::ExtensionProperties &deviceExtension) {
                 return std::string_view(deviceExtension.extensionName) == std::string_view(requiredExtension.data());
             }))
                 throw exception("Cannot find Vulkan device extension: \"{}\"", requiredExtension.data());
@@ -361,7 +371,7 @@ namespace skyline::gpu {
     GPU::GPU(const DeviceState &state)
         : state(state),
           vkContext(LoadVulkanDriver(state)),
-          vkInstance(CreateInstance(state, vkContext)),
+          vkInstance(CreateInstance(state, vkContext, vkDebugUtilsEnabled)),
           vkDebugReportCallback(CreateDebugReportCallback(this, vkInstance)),
           vkPhysicalDevice(CreatePhysicalDevice(vkInstance)),
           vkDevice(CreateDevice(vkContext, vkPhysicalDevice, vkQueueFamilyIndex, traits)),

@@ -15,6 +15,7 @@ namespace skyline::gpu::interconnect {
         auto addSubpass{[&] {
             renderPass->AddSubpass(inputAttachments, colorAttachments, depthStencilAttachment, gpu);
 
+            pastColorAttachments.insert(pastColorAttachments.end(), lastSubpassColorAttachments.begin(), lastSubpassColorAttachments.end());
             lastSubpassAttachments.clear();
             auto insertAttachmentRange{[this](auto &attachments) -> std::pair<size_t, size_t> {
                 size_t beginIndex{lastSubpassAttachments.size()};
@@ -38,6 +39,7 @@ namespace skyline::gpu::interconnect {
             // We need to create a render pass if one doesn't already exist or the current one isn't compatible
             if (renderPass != nullptr)
                 nodes.emplace_back(std::in_place_type_t<node::RenderPassEndNode>());
+            pastColorAttachments.clear();
             renderPass = &std::get<node::RenderPassNode>(nodes.emplace_back(std::in_place_type_t<node::RenderPassNode>(), renderArea));
             addSubpass();
             subpassCount = 1;
@@ -64,6 +66,7 @@ namespace skyline::gpu::interconnect {
             renderPass = nullptr;
             subpassCount = 0;
 
+            pastColorAttachments.clear();
             lastSubpassAttachments.clear();
             lastSubpassInputAttachments = nullptr;
             lastSubpassColorAttachments = nullptr;
@@ -106,13 +109,6 @@ namespace skyline::gpu::interconnect {
 
         if (exclusiveSubpass)
             FinishRenderPass();
-    }
-
-    void CommandExecutor::AddOutsideRpCommand(std::function<void(vk::raii::CommandBuffer &, const std::shared_ptr<FenceCycle> &, GPU &)> &&function) {
-        if (renderPass)
-            FinishRenderPass();
-
-        nodes.emplace_back(std::in_place_type_t<node::FunctionNode>(), std::forward<decltype(function)>(function));
     }
 
     void CommandExecutor::AddClearColorSubpass(TextureView *attachment, const vk::ClearColorValue &value) {
@@ -162,6 +158,17 @@ namespace skyline::gpu::interconnect {
             else
                 nodes.emplace_back(std::in_place_type_t<node::SubpassFunctionNode>(), function);
         }
+    }
+
+    void CommandExecutor::AddOutsideRpCommand(std::function<void(vk::raii::CommandBuffer &, const std::shared_ptr<FenceCycle> &, GPU &)> &&function) {
+        if (renderPass)
+            FinishRenderPass();
+
+        nodes.emplace_back(std::in_place_type_t<node::FunctionNode>(), std::forward<decltype(function)>(function));
+    }
+
+    void CommandExecutor::AddGeneralCommand(std::function<void(vk::raii::CommandBuffer &, const std::shared_ptr<FenceCycle> &, GPU &)> &&function) {
+        nodes.emplace_back(std::in_place_type_t<node::FunctionNode>(), std::forward<decltype(function)>(function));
     }
 
     void CommandExecutor::AddFlushCallback(std::function<void()> &&callback) {
