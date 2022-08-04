@@ -884,6 +884,7 @@ namespace skyline::gpu::interconnect {
             };
 
             DescriptorSetWrites descriptorSetWrites; //!< The writes to the descriptor set that need to be done prior to executing a pipeline
+            bool usesImg{};
         };
 
         /**
@@ -1058,11 +1059,14 @@ namespace skyline::gpu::interconnect {
             auto &bufferDescriptors{descriptorSetWrites.bufferDescriptors};
             auto &imageDescriptors{descriptorSetWrites.imageDescriptors};
             size_t bufferCount{}, imageCount{};
+            bool usesImage{};
             for (auto &pipelineStage : pipelineStages) {
                 if (pipelineStage.enabled) {
                     auto &program{pipelineStage.program->program};
                     bufferCount += program.info.constant_buffer_descriptors.size() + program.info.storage_buffers_descriptors.size();
-                    imageCount += program.info.texture_descriptors.size();
+                    imageCount += program.info.texture_descriptors.size() + program.info.image_descriptors.size();
+                    if (program.info.image_descriptors.size())
+                        usesImage = true;
                 }
             }
             bufferDescriptors.resize(bufferCount);
@@ -1253,8 +1257,68 @@ namespace skyline::gpu::interconnect {
                     }
                 }
 
-                if (!program.info.image_descriptors.empty())
-                    Logger::Warn("Found {} image descriptor", program.info.image_descriptors.size());
+                if (!program.info.image_descriptors.empty()) {
+                    if (!gpu.traits.quirks.needsIndividualTextureBindingWrites)
+                        descriptorWrites.push_back(vk::WriteDescriptorSet{
+                            .dstBinding = bindingIndex,
+                            .descriptorCount = static_cast<u32>(program.info.image_descriptors.size()),
+                            .descriptorType = vk::DescriptorType::eStorageImage,
+                            .pImageInfo = imageDescriptors.data() + imageIndex,
+                        });
+                    else
+                        descriptorWrites.reserve(descriptorWrites.size() + program.info.image_descriptors.size());
+
+                    for (auto &image : program.info.image_descriptors) {
+                        if (gpu.traits.quirks.needsIndividualTextureBindingWrites)
+                            descriptorWrites.push_back(vk::WriteDescriptorSet{
+                                .dstBinding = bindingIndex,
+                                .descriptorCount = 1,
+                                .descriptorType = vk::DescriptorType::eStorageImage,
+                                .pImageInfo = imageDescriptors.data() + imageIndex,
+                            });
+
+                        layoutBindings.push_back(vk::DescriptorSetLayoutBinding{
+                            .binding = bindingIndex++,
+                            .descriptorType = vk::DescriptorType::eStorageImage,
+                            .descriptorCount = 1,
+                            .stageFlags = pipelineStage.vkStage,
+                        });
+
+                        auto &constantBuffer{pipelineStage.constantBuffers[image.cbuf_index]};
+                        BindlessTextureHandle handle{constantBuffer.Read<u32>(executor, image.cbuf_offset)};
+
+                        auto textureView{GetPoolTextureView(handle.textureIndex)};
+                        executor.AttachTexture(textureView.get());
+                        texture::Format fmt{[&](){
+                            switch (image.format) {
+                                case ::Shader::ImageFormat::Typeless:
+                                    return *textureView->format;
+                                case ::Shader::ImageFormat::R8_UINT:
+                                    return format::R8Uint;
+                                case ::Shader::ImageFormat::R8_SINT:
+                                    return format::R8Sint;
+                                case ::Shader::ImageFormat::R16_UINT:
+                                    return format::R16Uint;
+                                case ::Shader::ImageFormat::R16_SINT:
+                                    return format::R16Sint;
+                                case ::Shader::ImageFormat::R32_UINT:
+                                    return format::R32Uint;
+                                case ::Shader::ImageFormat::R32G32_UINT:
+                                    return format::R32G32Uint;
+                                case ::Shader::ImageFormat::R32G32B32A32_UINT:
+                                    return format::R32G32B32A32Uint;
+                            }
+                        }()};
+                        auto view{textureView->texture->GetView(textureView->type, textureView->range, fmt)};
+                        executor.AttachTexture(view.get());
+
+
+                        imageDescriptors[imageIndex++] = vk::DescriptorImageInfo{
+                            .imageView = view->GetView(),
+                            .imageLayout = view->texture->layout,
+                        };
+                    }
+                }
 
                 shaderModules.emplace_back(pipelineStage.vkModule);
                 shaderStages.emplace_back(vk::PipelineShaderStageCreateInfo{
@@ -1271,6 +1335,7 @@ namespace skyline::gpu::interconnect {
                 std::move(shaderStages),
                 {layoutBindings.begin(), layoutBindings.end()},
                 std::move(descriptorSetWrites),
+                usesImage
             };
         }
 
@@ -3243,7 +3308,7 @@ namespace skyline::gpu::interconnect {
 
                 if (transformFeedbackEnabled)
                     commandBuffer.endTransformFeedbackEXT(0, {}, {});
-            }, renderArea, {}, activeColorRenderTargets, depthRenderTargetView, !gpu.traits.quirks.relaxedRenderPassCompatibility);
+            }, renderArea, {}, activeColorRenderTargets, depthRenderTargetView, programState.usesImg);
         }
 
         void Draw(u32 vertexCount, u32 firstVertex, u32 instanceCount) {
